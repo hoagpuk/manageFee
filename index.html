@@ -323,7 +323,7 @@ const BL={
 
 /* ===================== 4. COMMIT: TỰ ĐỘNG & REAL-TIME ===================== */
 function recompute(){const a=BL.genSessions(),b=BL.generateInvoices();BL.autoAllocate();BL.updateStatuses();BL.calculateTeacherPayroll();return{a,b}}
-function commit(msg){const r=recompute();Store.save();render();if(msg)toast(msg);if(r.b)toast('Tự tạo '+r.b+' hóa đơn');if(r.a)toast('Tự tạo '+r.a+' buổi học từ lịch giáo viên')}
+function commit(msg){const r=recompute();Store.save();render(true);if(msg)toast(msg);if(r.b)toast('Tự tạo '+r.b+' hóa đơn');if(r.a)toast('Tự tạo '+r.a+' buổi học từ lịch giáo viên')}
 function toast(t,bad){const d=document.createElement('div');d.textContent=t;if(bad)d.className='x';$('#toast').append(d);setTimeout(()=>d.remove(),3500)}
 function run(f,msg){try{f();commit(msg)}catch(e){toast(e.message,1)}}
 
@@ -471,7 +471,7 @@ function render(keepFocus){const m=$('#main'),sy=m.scrollTop,f=document.activeEl
 $('#role').innerHTML=opt(Object.keys(ROLES),'ADMIN');$('#role').onchange=e=>{ME.role=e.target.value;toast('Vai trò: '+ME.role)};
 $('#imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>A.importFile(r.result);r.readAsText(f);e.target.value=''};
 setInterval(()=>{$('#clk').textContent=new Date().toLocaleString('vi-VN')},1000);
-setInterval(()=>{const b=JSON.stringify(DB);recompute();if(JSON.stringify(DB)!==b){Store.save();render();toast('Dữ liệu tự cập nhật')}},30000); // tự động cập nhật theo thời gian
+setInterval(()=>{const b=JSON.stringify(DB);recompute();if(JSON.stringify(DB)!==b){Store.save();render(true);toast('Dữ liệu tự cập nhật')}},30000); // tự động cập nhật theo thời gian
 addEventListener('storage',e=>{if(e.key===Store.key){Store.load();render();toast('Đồng bộ từ tab khác')}});
 Store.load();recompute();Store.save();render();
 </script>
@@ -1107,24 +1107,41 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&app.classList.conta
 mq.addEventListener('change',()=>set(false));
 })();
 </script>
-<style>@media(max-width:800px){#gs{display:none}}</style>
+<style>@media(max-width:800px){#gs{display:none}}.noanim main>*,.noanim .bars i{animation-duration:0s!important;animation-delay:0s!important}#gs{font-variant-numeric:tabular-nums}</style>
 <script>
-/* ===== Đồng bộ Google Sheet (cập nhật mỗi 5 giây, mỗi bảng = 1 tab) ===== */
+/* ===== Đồng bộ Google Sheet (cập nhật mỗi 1 giây, mỗi bảng = 1 tab) ===== */
 (()=>{
 const OLD='qltt_gsheet';try{localStorage.removeItem(OLD)}catch(e){}   // xóa bản URL/khóa dạng thô còn sót từ phiên bản cũ
-/* >>> ĐIỀN 2 DÒNG NÀY (URL Web app dạng .../exec và KEY trùng Script Properties) <<< */
-const SEC={url:'https://script.google.com/macros/s/AKfycbzoqfHRgQTEHPWb3WYHNBn7f9GyOT-WMxIVCF0n7j1uy6VPVPjV02QKyySbDlyIiMG1/exec',key:'DÁN_KEY_VÀO_ĐÂY'};
-const on=()=>/^https:\/\/script\.google\.com\/.+\/exec$/.test(SEC.url)&&!!SEC.key&&SEC.key!=='DÁN_KEY_VÀO_ĐÂY';
+/* URL Web app (.../exec). Không dùng KEY. */
+const SEC={url:'https://script.google.com/macros/s/AKfycbzZM8ukbzInHcm1j_kn9NS3P-dJ5c2TYof2kasHGKF2nPZX5CF_cr7tKELAlJp_quXpsQ/exec'};
+const PULL_ONLY=false;   // true = CHỈ lấy dữ liệu từ Google Sheet về app (app không ghi lên Sheet). Sửa dữ liệu ở Google Sheet.
+const on=()=>/^https:\/\/script\.google\.com\/.+\/exec$/.test(SEC.url);
 const Y={vers:{},last:{},busy:0,ready:0,st:''};let tm;
 const chip=(st,t)=>{Y.st=st;const e=$('#gs');if(e){e.textContent=t;e.title=t}};
 const hm=()=>new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 async function call(o){
- const r=await fetch(SEC.url,{method:'POST',body:JSON.stringify({...o,key:SEC.key})});   // POST, không đặt Content-Type để tránh preflight CORS
- const j=await r.json();if(j.error)throw Error(j.error==='key'?'Sai mã bí mật (hoặc bị khóa tạm)':j.error);return j}
-async function pull(ts){const j=await call({a:'read',t:ts});
+ const ac=new AbortController(),to=setTimeout(()=>ac.abort(),20000);   // quá 20 giây thì hủy, tránh treo ở "Đang kết nối…"
+ try{const r=await fetch(SEC.url,{method:'POST',body:JSON.stringify(o),signal:ac.signal});   // POST, không đặt Content-Type để tránh preflight CORS
+  const j=await r.json();if(j.error)throw Error(j.error==='key'?'Sai mã bí mật (hoặc bị khóa tạm)':j.error);return j}
+ catch(e){throw e.name==='AbortError'?Error('Hết thời gian chờ Google Sheet'):e}
+ finally{clearTimeout(to)}}
+const modalOpen=()=>!!document.querySelector('#modal .mb');
+const typing=()=>{const a=document.activeElement;return !!(a&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName)&&a.closest('main'))};
+function softRender(){   // vẽ lại giữ nguyên vị trí cuộn, không chạy lại hiệu ứng; hoãn nếu đang mở form hoặc đang gõ
+ if(modalOpen()||typing()){Y.rp=1;return}
+ Y.rp=0;const m=$('#main'),st=m?m.scrollTop:0,sl=m?m.scrollLeft:0;
+ document.body.classList.add('noanim');render(true);   // render(true) = không chạy lại hiệu ứng đếm số / vẽ biểu đồ từ đầu
+ 
+ const m2=$('#main');if(m2){m2.scrollTop=st;m2.scrollLeft=sl}
+ setTimeout(()=>document.body.classList.remove('noanim'),1000)}
+async function pull(ts){Y.pulling=1;try{const j=await call({a:'read',t:ts});
+ const before=ts.map(t=>JSON.stringify(DB[t]));
  ts.forEach(t=>{DB[t]=j.data[t]||[];Y.last[t]=JSON.stringify(DB[t]);Y.vers[t]=j.vers[t]||0});
- if(!DB.settings[0])DB.settings=[{seq:{}}];syncAuth();try{localStorage.setItem(Store.key,JSON.stringify(DB))}catch(e){}render()}
-async function push(){if(!on()||!Y.ready)return;if(Y.busy){Y.again=1;return}Y.busy=1;
+ if(!DB.settings[0])DB.settings=[{seq:{}}];syncAuth();
+ if(PULL_ONLY){try{recompute()}catch(e){console.error(e)}}   // tính lại hóa đơn/trạng thái ngay trên máy, không ghi lên Sheet
+ try{localStorage.setItem(Store.key,JSON.stringify(DB))}catch(e){}
+ const changed=PULL_ONLY||ts.some((t,i)=>JSON.stringify(DB[t])!==before[i]);if(changed)softRender();return changed}finally{Y.pulling=0}}
+async function push(){if(PULL_ONLY||!on()||!Y.ready)return;if(Y.busy){Y.again=1;return}Y.busy=1;
  try{const d={},b={},sn={};TABLES.forEach(t=>{const x=JSON.stringify(DB[t]);if(x!==Y.last[t]){d[t]=DB[t];b[t]=Y.vers[t]||0;sn[t]=x}});
   if(Object.keys(d).length){chip('..','☁ Đang đồng bộ…');const j=await call({a:'push',base:b,data:d}),cf=j.conf||[];
    Object.keys(d).forEach(t=>{if(!cf.includes(t)){Y.last[t]=sn[t];Y.vers[t]=j.vers[t]}});
@@ -1132,24 +1149,33 @@ async function push(){if(!on()||!Y.ready)return;if(Y.busy){Y.again=1;return}Y.bu
   chip('ok','☁ Đã đồng bộ '+hm())}catch(e){chip('err','⚠ Lỗi đồng bộ');console.error(e)}
  Y.busy=0;if(Y.again){Y.again=0;sched()}}
 const sched=()=>{if(on()&&Y.ready){clearTimeout(tm);tm=setTimeout(push,1200)}};
-async function poll(){if(!on()||!Y.ready||Y.busy||document.hidden)return;Y.busy=1;
- try{const j=await call({a:'vers'}),ts=TABLES.filter(t=>(j.vers[t]||0)!==(Y.vers[t]||0)&&JSON.stringify(DB[t])===Y.last[t]);
-  if(ts.length){await pull(ts);toast('Đã cập nhật từ Google Sheet ('+ts.length+' bảng)')}chip('ok','☁ Đã đồng bộ '+hm())}catch(e){chip('err','⚠ Mất kết nối Sheet')}
+async function poll(){if(Y.rp&&!modalOpen()&&!typing()&&!document.hidden)softRender();
+ if(!on()||!Y.ready||Y.busy||document.hidden)return;Y.busy=1;
+ try{const j=await call({a:'vers'}),ts=TABLES.filter(t=>(j.vers[t]||0)!==(Y.vers[t]||0)&&(PULL_ONLY||JSON.stringify(DB[t])===Y.last[t]));
+  let ch=false;if(ts.length){ch=await pull(ts);if(ch)toast('Đã cập nhật từ Google Sheet ('+ts.length+' bảng)')}
+  if(ch||Y.st!=='ok')chip('ok','☁ Đã đồng bộ '+hm())}catch(e){chip('err','⚠ Mất kết nối Sheet')}
  Y.busy=0}
 async function connect(silent){Y.ready=0;Y.busy=0;chip('..','☁ Đang kết nối…');
- try{const j=await call({a:'vers'}),mine=DB.students.length||DB.classes.length||DB.teachers.length;let has=false;
+ try{if(PULL_ONLY){await pull(TABLES);Y.ready=1;chip('ok','☁ Đã tải từ Sheet '+hm());if(!silent)toast('Đã tải dữ liệu từ Google Sheet');return}
+  const j=await call({a:'vers'}),mine=DB.students.length||DB.classes.length||DB.teachers.length;let has=false;
   if(Object.values(j.vers).some(v=>v>0)){const k=await call({a:'read',t:['students','classes','teachers']});has=['students','classes','teachers'].some(t=>(k.data[t]||[]).length)}
   if(has&&(silent||!mine||confirm('Google Sheet đã có dữ liệu.\nOK = dùng dữ liệu trên Sheet (dữ liệu trên máy này bị thay).\nHủy = ghi đè Sheet bằng dữ liệu trên máy này.'))){await pull(TABLES);Y.ready=1}
   else{Y.vers={...j.vers};Y.last={};Y.ready=1;await push()}
   chip('ok','☁ Đã đồng bộ '+hm());if(!silent)toast('Đã kết nối Google Sheet')}catch(e){chip('err','⚠ '+e.message);toast('Không kết nối được Google Sheet: '+e.message,1)}}
-const _s=Store.save;Store.save=function(){_s.apply(this,arguments);sched()};
-window.G={set(){if(!on())return toast('Chưa điền URL và KEY ở đầu phần đồng bộ trong index.html',1);connect()},
- now(){push().then(poll)},
+const _s=Store.save;let _bt=0;Store.save=function(){
+ if(PULL_ONLY){if(Y.pulling)return;   // chế độ chỉ đọc: không lưu thay đổi trong app, tải lại từ Sheet
+  if(on()&&Date.now()-_bt>3000){_bt=Date.now();toast('Chế độ chỉ xem: hãy sửa dữ liệu trên Google Sheet. Thay đổi trong app đã bị hủy',1)}
+  if(on())setTimeout(()=>{if(!Y.pulling)pull(TABLES).catch(()=>{})},50);return}
+ _s.apply(this,arguments);sched()};
+window.G={set(){if(!on())return toast('Chưa điền URL ở đầu phần đồng bộ trong index.html',1);connect()},
+ now(){PULL_ONLY?pull(TABLES).then(()=>toast('Đã tải lại từ Google Sheet')).catch(e=>toast(e.message,1)):push().then(poll)},
  off(){Y.ready=0;clearTimeout(tm);chip('','');toast('Đã tạm ngắt đồng bộ (tải lại trang để nối lại)');render()}};
-const card=()=>`<div class="gl dc"><div class="dh"><span class="ki2">☁️</span><div><b>Google Sheet (đồng bộ tự động)</b><div class="mute">${on()?'Đang bật · kiểm tra thay đổi mỗi 5 giây':'Chưa điền URL/KEY trong index.html'}</div></div></div><div class="bar"><button class="pri" onclick="G.set()">${on()?'Kết nối lại':'Kết nối'}</button>${on()?'<button onclick="G.now()">Đồng bộ ngay</button><button onclick="G.off()">Ngắt đồng bộ</button>':''}</div></div>`;
+const card=()=>`<div class="gl dc"><div class="dh"><span class="ki2">☁️</span><div><b>Google Sheet (đồng bộ tự động)</b><div class="mute">${on()?(PULL_ONLY?'Chỉ lấy dữ liệu từ Sheet · kiểm tra mỗi 1 giây · sửa dữ liệu ở Google Sheet':'Đang bật · kiểm tra thay đổi mỗi 1 giây'):'Chưa điền URL trong index.html'}</div></div></div><div class="bar"><button class="pri" onclick="G.set()">${on()?'Kết nối lại':'Kết nối'}</button>${on()?'<button onclick="G.now()">Đồng bộ ngay</button><button onclick="G.off()">Ngắt đồng bộ</button>':''}</div></div>`;
 const _d=P.data;P.data=()=>_d().replace(/<div class="al[^"]*">(?:✓ Đang lưu tự động vào thư mục|Chưa chọn thư mục)[\s\S]*?<\/div>/,'').replace('<h3>Nguồn dữ liệu</h3><div class="dgrid">',()=>'<h3>Nguồn dữ liệu</h3><div class="dgrid">'+card());
 $('#sv').insertAdjacentHTML('afterend','<span id="gs" class="mute" style="font-size:12px;white-space:nowrap"></span>');
-setInterval(poll,5000);
+setInterval(poll,1000);                                   // kiểm tra Sheet mỗi 1 giây
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});   // quay lại tab là cập nhật ngay
+setInterval(()=>{if(on()&&!Y.ready&&!Y.busy)connect(true)},10000);       // lỗi mạng thì tự kết nối lại
 if(on())setTimeout(()=>connect(true),800);   // tự kết nối khi mở app
 })();
 </script>
