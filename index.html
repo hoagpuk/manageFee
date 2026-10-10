@@ -490,35 +490,13 @@ function syncAuth(){
  Object.keys(m).forEach(r=>ROLES[r]=m[r].includes('*')?'*':m[r].join(','));ROLES.ADMIN='*';
  DB.users.forEach((u,i)=>{u.username=u.username||(i===0?'admin':u.user_id);u.status=u.status||'ACTIVE'});CFG()}
 
-/* ---------- LƯU TRỮ: mỗi bảng một file .txt trong thư mục người dùng chọn ---------- */
-const FS={h:null,pend:null,last:{},ok:'showDirectoryPicker' in window,
- idb(m,v){return new Promise((res,rej)=>{const o=indexedDB.open('qltt_fs',1);o.onupgradeneeded=()=>o.result.createObjectStore('k');o.onerror=()=>rej(o.error);o.onsuccess=()=>{const s=o.result.transaction('k',m==='get'?'readonly':'readwrite').objectStore('k'),r=m==='get'?s.get('dir'):s.put(v,'dir');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}})},
- async pick(){if(!this.ok)return toast('Trình duyệt này không chọn được thư mục. Hãy dùng Chrome/Edge, hoặc dùng "Xuất từng bảng .txt".',1);
-  try{this.h=await showDirectoryPicker({mode:'readwrite'});await this.idb('set',this.h);this.pend=null;await this.attach()}catch(e){if(e.name!=='AbortError')toast(e.message,1)}},
- async resume(){try{const h=await this.idb('get');if(!h)return;if(await h.queryPermission({mode:'readwrite'})==='granted'){this.h=h;await this.attach(true)}else{this.pend=h;chip()}}catch(e){}},
- async reconnect(){try{if(await this.pend.requestPermission({mode:'readwrite'})==='granted'){this.h=this.pend;this.pend=null;await this.attach(true)}}catch(e){toast(e.message,1)}},
- async attach(silent){let found=0;const nd={};
-  for(const t of TABLES){try{const f=await(await this.h.getFileHandle(t+'.txt')).getFile();const o=JSON.parse(await f.text());if(Array.isArray(o.rows)){nd[t]=o.rows;found++}}catch(e){}}
-  if(found&&(silent||confirm('Thư mục "'+this.h.name+'" đã có dữ liệu ('+found+' bảng).\nOK = dùng dữ liệu trong thư mục.\nHủy = ghi đè thư mục bằng dữ liệu đang có.'))){TABLES.forEach(t=>DB[t]=nd[t]||[]);if(!DB.settings[0])DB.settings=[{seq:{}}]}
-  syncAuth();this.last={};await this.flush(true);chip();commit('Đang lưu tự động vào thư mục: '+this.h.name)},
- schedule(){clearTimeout(this.t);this.t=setTimeout(()=>this.flush(),400)},
- async put(name,txt,dir){const w=await(await(dir||this.h).getFileHandle(name,{create:true})).createWritable();await w.write(txt);await w.close()},
- async flush(force){if(!this.h)return;if(this.busy){this.again=true;return}this.busy=true;
-  try{let n=0;for(const t of TABLES){const s=JSON.stringify(DB[t]);if(!force&&this.last[t]===s)continue;
-    await this.put(t+'.txt',JSON.stringify({table:t,version:1,count:DB[t].length,savedAt:new Date().toISOString(),rows:DB[t]},null,1));this.last[t]=s;n++}
-   if(n)await this.put('_manifest.txt',JSON.stringify({app:'QuanLyTrungTam',version:1,updatedAt:new Date().toISOString(),tables:TABLES.map(t=>({table:t,file:t+'.txt',count:DB[t].length}))},null,1));chip(true)}
-  catch(e){toast('Lỗi ghi file: '+e.message+' — đã chuyển về lưu trình duyệt',1);this.h=null;chip()}
-  this.busy=false;if(this.again){this.again=false;this.flush()}}};
-function chip(saved){const b=$('#fsb');if(!b)return;
- if(FS.h){b.textContent='📁 '+FS.h.name+(saved?' ✓':'');b.className='ok';b.title='Mỗi bảng được lưu tự động thành một file .txt trong thư mục này'}
- else if(FS.pend){b.textContent='🔌 Kết nối lại: '+FS.pend.name;b.className='warn';b.title='Trình duyệt cần bạn cho phép lại quyền ghi thư mục'}
- else{b.textContent='📁 Chọn thư mục dữ liệu';b.className='';b.title='Chưa chọn: dữ liệu chỉ lưu trong trình duyệt'}}
+const FS={h:null,pend:null,schedule(){},put(){}};try{indexedDB.deleteDatabase('qltt_fs')}catch(e){}
+function chip(){}
 Store.save=function(){try{localStorage.setItem(this.key,JSON.stringify(DB))}catch(e){if(!FS.h)toast('Bộ nhớ trình duyệt đầy — hãy chọn thư mục dữ liệu',1)}FS.schedule()};
 function dl(name,txt){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download=name;a.click()}
 A.exportTables=()=>{need('data');if(!confirm('Tải '+TABLES.length+' file .txt (mỗi bảng một file)? Trình duyệt có thể hỏi cho phép tải nhiều file.'))return;
  TABLES.forEach((t,i)=>setTimeout(()=>dl(t+'.txt',JSON.stringify({table:t,version:1,count:DB[t].length,rows:DB[t]},null,1)),i*180))};
 const _exp=A.export;A.export=()=>{try{need('data')}catch(e){return toast(e.message,1)}_exp()};
-const _bk=A.backup;A.backup=async()=>{_bk();if(FS.h){try{let d=await FS.h.getDirectoryHandle('backups',{create:true});const o={app:'QuanLyTrungTam',version:1,exportedAt:new Date().toISOString()};TABLES.forEach(t=>o[t]=DB[t]);await FS.put('backup_'+new Date().toISOString().replace(/[:.]/g,'-')+'.txt',JSON.stringify(o),d);toast('Đã ghi file backup vào thư mục /backups')}catch(e){toast(e.message,1)}}};
 const _imp=A.importFile;A.importFile=t=>{try{need('data')}catch(e){return toast(e.message,1)}_imp(t)};
 async function readFiles(files){const o={app:'QuanLyTrungTam',version:1};let whole=null,n=0;
  for(const f of files){if(/manifest/.test(f.name))continue;let j;try{j=JSON.parse(await f.text())}catch(e){return toast(f.name+' không phải JSON hợp lệ',1)}
@@ -542,7 +520,7 @@ $('#role').style.display='none';
 $('header').insertAdjacentHTML('beforeend','');
 $('#expb')||0;
 {const hd=$('header'),btns=[...hd.querySelectorAll('button')];btns[0].id='expb';btns[0].textContent='💾 Xuất 1 file';btns[1].id='impb';btns[1].textContent='📂 Nhập file .txt';
- btns[0].insertAdjacentHTML('beforebegin','<span id="usr" class="live"></span><button id="fsb" onclick="FS.pend?FS.reconnect():FS.pick()"></button>')}
+ btns[0].insertAdjacentHTML('beforebegin','<span id="usr" class="live"></span>')}
 
 /* ---------- RENDER (lọc trang theo vai trò) ---------- */
 function render(){const m=$('#main'),sy=m.scrollTop,f=document.activeElement,fid=f&&f.tagName==='INPUT'&&m.contains(f)?[f.placeholder,f.selectionStart]:null;
@@ -736,7 +714,7 @@ const _data=P.data;P.data=()=>_data().replace('<button onclick="A.backup()">Back
  .replace('<h3>Kiểm tra toàn vẹn dữ liệu</h3>',`<div class="al ${FS.h?'g':''}">${FS.h?'✓ Đang lưu tự động vào thư mục "'+esc(FS.h.name)+'": mỗi bảng là một file .txt (students.txt, invoices.txt, payments.txt…) cùng _manifest.txt. Mỗi file là JSON {table, rows[]}, sau này nạp thẳng vào database theo từng bảng.':'Chưa chọn thư mục: dữ liệu mới chỉ nằm trong trình duyệt. Bấm "📁 Thư mục dữ liệu" (Chrome/Edge) để mỗi bảng được lưu thành một file .txt.'}</div><h3>Kiểm tra toàn vẹn dữ liệu</h3>`);
 
 /* ---------- KHỞI ĐỘNG ---------- */
-syncAuth();recompute();Store.save();chip();gate();FS.resume();
+syncAuth();recompute();Store.save();chip();gate();
 
 
 /* ===== Giao diện: logo 3D động (khối lập phương + vòng quỹ đạo) cũng làm favicon, ánh sáng theo chuột ===== */
@@ -953,7 +931,6 @@ function seed(){
  DB.auditLogs=[{user_id:ME.id,action:'SEED',entity:'system',entity_id:'',old_value:null,new_value:'Dữ liệu mẫu',timestamp:new Date().toISOString(),reason:'Tạo dữ liệu mẫu'}];DB.settings[0].seeded=1;
  Store.save();UI.page='dash';render();toast('Đã nạp dữ liệu mẫu: '+DB.students.length+' học sinh, '+DB.classes.length+' lớp, '+DB.teachers.length+' giáo viên')}
 A.seed=()=>{if(DB.students.length&&!confirm('Thay toàn bộ dữ liệu hiện tại bằng dữ liệu mẫu?'))return;try{seed()}catch(e){console.error(e);toast('Lỗi tạo dữ liệu mẫu: '+e.message,1)}};
-if(!DB.students.length&&!DB.settings[0].seeded&&!DB.auditLogs.length){try{seed()}catch(e){console.error(e)}}
 if(!matchMedia('(prefers-reduced-motion:reduce)').matches){const c=document.createElement('canvas');c.id='net';document.body.prepend(c);const x=c.getContext('2d'),m={x:-1e3,y:-1e3};let W,H,P=[];const rs=()=>{W=c.width=innerWidth;H=c.height=innerHeight;P=Array.from({length:Math.min(70,W*H/22000|0)},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3}))};rs();addEventListener('resize',rs);addEventListener('pointermove',e=>{m.x=e.clientX;m.y=e.clientY});
  (function f(){x.clearRect(0,0,W,H);P.forEach((p,i)=>{p.x=(p.x+p.vx+W)%W;p.y=(p.y+p.vy+H)%H;x.fillStyle='#8fc1ff99';x.beginPath();x.arc(p.x,p.y,1.4,0,7);x.fill();for(let j=i+1;j<P.length;j++){const o=P[j],d=Math.hypot(p.x-o.x,p.y-o.y);if(d<130){x.strokeStyle=`rgba(110,170,255,${.2*(1-d/130)})`;x.beginPath();x.moveTo(p.x,p.y);x.lineTo(o.x,o.y);x.stroke()}}const d=Math.hypot(p.x-m.x,p.y-m.y);if(d<160){x.strokeStyle=`rgba(56,198,255,${.35*(1-d/160)})`;x.beginPath();x.moveTo(p.x,p.y);x.lineTo(m.x,m.y);x.stroke()}});requestAnimationFrame(f)})()}
 })();
@@ -1103,16 +1080,14 @@ const dc=(ic,t,d,b)=>`<div class="gl dc"><div class="dh"><span class="ki2">${ic}
 const _pd=P.data;P.data=()=>{let h=_pd();
  const loc=FS.h?'Thư mục <b>'+esc(FS.h.name)+'</b> · mỗi bảng một file .txt, tự ghi khi có thay đổi':FS.pend?'Thư mục <b>'+esc(FS.pend.name)+'</b> cần cấp lại quyền ghi':'Đang lưu trong trình duyệt (tự động)';
  const cards=`<h3>Nguồn dữ liệu</h3><div class="dgrid">`+
- dc('💾','Nơi lưu trữ',loc,FS.pend?'<button class="pri" onclick="FS.reconnect()">🔌 Kết nối lại</button>':'<button class="pri" onclick="FS.pick()">📁 '+(FS.h?'Đổi thư mục':'Chọn thư mục')+'</button>')+
- dc('🛡️','Sao lưu tự động',SN.length?SN.length+' bản trong trình duyệt · gần nhất '+new Date(SN[0].t).toLocaleString('vi-VN'):'Chưa có bản nào · tự tạo mỗi 5 phút khi có thay đổi','<button onclick="A.snapNow()">Sao lưu ngay</button><button onclick="A.backup()">Backup nội bộ</button><button onclick="A.restoreBk()">Restore</button>')+
+  dc('🛡️','Sao lưu tự động',SN.length?SN.length+' bản trong trình duyệt · gần nhất '+new Date(SN[0].t).toLocaleString('vi-VN'):'Chưa có bản nào · tự tạo mỗi 5 phút khi có thay đổi','<button onclick="A.snapNow()">Sao lưu ngay</button><button onclick="A.backup()">Backup nội bộ</button><button onclick="A.restoreBk()">Restore</button>')+
  dc('📦','Nhập / Xuất','Nhập chọn được nhiều file .txt từng bảng, hoặc một file tổng','<button onclick="$(\'#imp\').click()">📂 Nhập file</button><button onclick="A.export()">Xuất 1 file</button><button onclick="A.exportTables()">Xuất từng bảng</button>')+
- dc('🧪','Dữ liệu mẫu','Nạp bộ dữ liệu mô phỏng 56 học sinh, 6 tháng hoạt động','<button onclick="A.seed()">Nạp dữ liệu mẫu</button><button onclick="A.wipe()" style="color:var(--bad)">Bắt đầu trống</button>')+
+ dc('🧪','Dữ liệu mẫu','Nạp bộ dữ liệu mô phỏng 56 học sinh, 6 tháng hoạt động','<button onclick="A.seed()">Nạp dữ liệu mẫu</button><button onclick="A.wipe()" style="color:var(--bad)">🗑 Xóa sạch dữ liệu</button>')+
  dc('🗓️','Kỳ kế toán','Tạo kỳ, khóa kỳ khi dữ liệu không còn lỗi','<button onclick="A.period()">+ Kỳ / Khóa kỳ</button>')+`</div>`+
  (SN.length?tbl(['Bản sao lưu tự động','Học sinh','Dung lượng',''],SN.map((x,i)=>[new Date(x.t).toLocaleString('vi-VN'),x.n,(x.z/1048576).toFixed(2)+' MB',ibtn('Khôi phục','A.snapRestore('+i+')')])):'');
  return h.replace(/<div class="bar"><button class="pri" onclick="A\.export\(\)">[\s\S]*?<\/div>/,()=>cards).replace('Bấm "📁 Thư mục dữ liệu"','Dùng thẻ "Nơi lưu trữ" ở trên')};
 const empty=()=>!DB.students.length&&!DB.classes.length&&!DB.teachers.length;
-if(empty()&&!DB.settings[0].wiped){try{_sd()}catch(e){console.error(e)}}
-const _pd2=P.dash;P.dash=()=>{const h=_pd2();return empty()?h.replace('</h2>',()=>'</h2><div class="al">Chưa có dữ liệu. <button class="pri sm" onclick="A.seed()">🧪 Nạp dữ liệu mẫu</button> hoặc vào Dữ liệu &amp; kiểm tra để nhập file / chọn thư mục.</div>'):h};
+const _pd2=P.dash;P.dash=()=>{const h=_pd2();return empty()?h.replace('</h2>',()=>'</h2><div class="al">Chưa có dữ liệu. <button class="pri sm" onclick="A.seed()">🧪 Nạp dữ liệu mẫu</button> hoặc vào Dữ liệu &amp; kiểm tra để nhập file / kết nối Google Sheet.</div>'):h};
 const hid=document.createElement('div');hid.hidden=true;document.body.append(hid);
 document.querySelectorAll('header>button').forEach(b=>{if(b.id!=='cmdb'&&b.id!=='bell')hid.append(b)});
 document.addEventListener('pointerdown',()=>{if(FS.pend&&!FS.tried){FS.tried=1;FS.reconnect()}},{once:true});
@@ -1130,6 +1105,52 @@ nav.addEventListener('click',e=>{if(e.target.closest('a'))set(false)});
 document.addEventListener('click',e=>{if(app.classList.contains('mo')&&!nav.contains(e.target)&&e.target!==b)set(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&app.classList.contains('mo')){set(false);b.focus()}});
 mq.addEventListener('change',()=>set(false));
+})();
+</script>
+<style>@media(max-width:800px){#gs{display:none}}</style>
+<script>
+/* ===== Đồng bộ Google Sheet (cập nhật mỗi 5 giây, mỗi bảng = 1 tab) ===== */
+(()=>{
+const OLD='qltt_gsheet';try{localStorage.removeItem(OLD)}catch(e){}   // xóa bản URL/khóa dạng thô còn sót từ phiên bản cũ
+/* >>> ĐIỀN 2 DÒNG NÀY (URL Web app dạng .../exec và KEY trùng Script Properties) <<< */
+const SEC={url:'https://script.google.com/macros/s/AKfycbzoqfHRgQTEHPWb3WYHNBn7f9GyOT-WMxIVCF0n7j1uy6VPVPjV02QKyySbDlyIiMG1/exec',key:'DÁN_KEY_VÀO_ĐÂY'};
+const on=()=>/^https:\/\/script\.google\.com\/.+\/exec$/.test(SEC.url)&&!!SEC.key&&SEC.key!=='DÁN_KEY_VÀO_ĐÂY';
+const Y={vers:{},last:{},busy:0,ready:0,st:''};let tm;
+const chip=(st,t)=>{Y.st=st;const e=$('#gs');if(e){e.textContent=t;e.title=t}};
+const hm=()=>new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+async function call(o){
+ const r=await fetch(SEC.url,{method:'POST',body:JSON.stringify({...o,key:SEC.key})});   // POST, không đặt Content-Type để tránh preflight CORS
+ const j=await r.json();if(j.error)throw Error(j.error==='key'?'Sai mã bí mật (hoặc bị khóa tạm)':j.error);return j}
+async function pull(ts){const j=await call({a:'read',t:ts});
+ ts.forEach(t=>{DB[t]=j.data[t]||[];Y.last[t]=JSON.stringify(DB[t]);Y.vers[t]=j.vers[t]||0});
+ if(!DB.settings[0])DB.settings=[{seq:{}}];syncAuth();try{localStorage.setItem(Store.key,JSON.stringify(DB))}catch(e){}render()}
+async function push(){if(!on()||!Y.ready)return;if(Y.busy){Y.again=1;return}Y.busy=1;
+ try{const d={},b={},sn={};TABLES.forEach(t=>{const x=JSON.stringify(DB[t]);if(x!==Y.last[t]){d[t]=DB[t];b[t]=Y.vers[t]||0;sn[t]=x}});
+  if(Object.keys(d).length){chip('..','☁ Đang đồng bộ…');const j=await call({a:'push',base:b,data:d}),cf=j.conf||[];
+   Object.keys(d).forEach(t=>{if(!cf.includes(t)){Y.last[t]=sn[t];Y.vers[t]=j.vers[t]}});
+   if(cf.length){await pull(cf);toast('Có người vừa sửa '+cf.length+' bảng. Đã tải bản mới nhất, hãy kiểm tra lại thao tác vừa rồi',1)}}
+  chip('ok','☁ Đã đồng bộ '+hm())}catch(e){chip('err','⚠ Lỗi đồng bộ');console.error(e)}
+ Y.busy=0;if(Y.again){Y.again=0;sched()}}
+const sched=()=>{if(on()&&Y.ready){clearTimeout(tm);tm=setTimeout(push,1200)}};
+async function poll(){if(!on()||!Y.ready||Y.busy||document.hidden)return;Y.busy=1;
+ try{const j=await call({a:'vers'}),ts=TABLES.filter(t=>(j.vers[t]||0)!==(Y.vers[t]||0)&&JSON.stringify(DB[t])===Y.last[t]);
+  if(ts.length){await pull(ts);toast('Đã cập nhật từ Google Sheet ('+ts.length+' bảng)')}chip('ok','☁ Đã đồng bộ '+hm())}catch(e){chip('err','⚠ Mất kết nối Sheet')}
+ Y.busy=0}
+async function connect(silent){Y.ready=0;Y.busy=0;chip('..','☁ Đang kết nối…');
+ try{const j=await call({a:'vers'}),mine=DB.students.length||DB.classes.length||DB.teachers.length;let has=false;
+  if(Object.values(j.vers).some(v=>v>0)){const k=await call({a:'read',t:['students','classes','teachers']});has=['students','classes','teachers'].some(t=>(k.data[t]||[]).length)}
+  if(has&&(silent||!mine||confirm('Google Sheet đã có dữ liệu.\nOK = dùng dữ liệu trên Sheet (dữ liệu trên máy này bị thay).\nHủy = ghi đè Sheet bằng dữ liệu trên máy này.'))){await pull(TABLES);Y.ready=1}
+  else{Y.vers={...j.vers};Y.last={};Y.ready=1;await push()}
+  chip('ok','☁ Đã đồng bộ '+hm());if(!silent)toast('Đã kết nối Google Sheet')}catch(e){chip('err','⚠ '+e.message);toast('Không kết nối được Google Sheet: '+e.message,1)}}
+const _s=Store.save;Store.save=function(){_s.apply(this,arguments);sched()};
+window.G={set(){if(!on())return toast('Chưa điền URL và KEY ở đầu phần đồng bộ trong index.html',1);connect()},
+ now(){push().then(poll)},
+ off(){Y.ready=0;clearTimeout(tm);chip('','');toast('Đã tạm ngắt đồng bộ (tải lại trang để nối lại)');render()}};
+const card=()=>`<div class="gl dc"><div class="dh"><span class="ki2">☁️</span><div><b>Google Sheet (đồng bộ tự động)</b><div class="mute">${on()?'Đang bật · kiểm tra thay đổi mỗi 5 giây':'Chưa điền URL/KEY trong index.html'}</div></div></div><div class="bar"><button class="pri" onclick="G.set()">${on()?'Kết nối lại':'Kết nối'}</button>${on()?'<button onclick="G.now()">Đồng bộ ngay</button><button onclick="G.off()">Ngắt đồng bộ</button>':''}</div></div>`;
+const _d=P.data;P.data=()=>_d().replace(/<div class="al[^"]*">(?:✓ Đang lưu tự động vào thư mục|Chưa chọn thư mục)[\s\S]*?<\/div>/,'').replace('<h3>Nguồn dữ liệu</h3><div class="dgrid">',()=>'<h3>Nguồn dữ liệu</h3><div class="dgrid">'+card());
+$('#sv').insertAdjacentHTML('afterend','<span id="gs" class="mute" style="font-size:12px;white-space:nowrap"></span>');
+setInterval(poll,5000);
+if(on())setTimeout(()=>connect(true),800);   // tự kết nối khi mở app
 })();
 </script>
 </body></html>
