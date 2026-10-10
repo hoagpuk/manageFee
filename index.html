@@ -323,7 +323,7 @@ const BL={
 
 /* ===================== 4. COMMIT: TỰ ĐỘNG & REAL-TIME ===================== */
 function recompute(){const a=BL.genSessions(),b=BL.generateInvoices();BL.autoAllocate();BL.updateStatuses();BL.calculateTeacherPayroll();return{a,b}}
-function commit(msg){const r=recompute();Store.save();render(true);if(msg)toast(msg);if(r.b)toast('Tự tạo '+r.b+' hóa đơn');if(r.a)toast('Tự tạo '+r.a+' buổi học từ lịch giáo viên')}
+function commit(msg){const r=recompute();Store.save();(window.softRender||render)(true);if(msg)toast(msg);if(r.b)toast('Tự tạo '+r.b+' hóa đơn');if(r.a)toast('Tự tạo '+r.a+' buổi học từ lịch giáo viên')}
 function toast(t,bad){const d=document.createElement('div');d.textContent=t;if(bad)d.className='x';$('#toast').append(d);setTimeout(()=>d.remove(),3500)}
 function run(f,msg){try{f();commit(msg)}catch(e){toast(e.message,1)}}
 
@@ -471,7 +471,7 @@ function render(keepFocus){const m=$('#main'),sy=m.scrollTop,f=document.activeEl
 $('#role').innerHTML=opt(Object.keys(ROLES),'ADMIN');$('#role').onchange=e=>{ME.role=e.target.value;toast('Vai trò: '+ME.role)};
 $('#imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>A.importFile(r.result);r.readAsText(f);e.target.value=''};
 setInterval(()=>{$('#clk').textContent=new Date().toLocaleString('vi-VN')},1000);
-setInterval(()=>{const b=JSON.stringify(DB);recompute();if(JSON.stringify(DB)!==b){Store.save();render(true);toast('Dữ liệu tự cập nhật')}},30000); // tự động cập nhật theo thời gian
+setInterval(()=>{const b=JSON.stringify(DB);recompute();if(JSON.stringify(DB)!==b){Store.save();(window.softRender||render)(true);toast('Dữ liệu tự cập nhật')}},30000); // tự động cập nhật theo thời gian
 addEventListener('storage',e=>{if(e.key===Store.key){Store.load();render();toast('Đồng bộ từ tab khác')}});
 Store.load();recompute();Store.save();render();
 </script>
@@ -1107,7 +1107,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&app.classList.conta
 mq.addEventListener('change',()=>set(false));
 })();
 </script>
-<style>@media(max-width:800px){#gs{display:none}}.noanim main>*,.noanim .bars i{animation-duration:0s!important;animation-delay:0s!important}#gs{font-variant-numeric:tabular-nums}</style>
+<style>@media(max-width:800px){#gs{display:none}}#gs{font-variant-numeric:tabular-nums}.flc{animation:flc 1s ease-out}@keyframes flc{from{background:#2de2a655;box-shadow:0 0 0 3px #2de2a655}}.bars i{transition:height .5s ease}</style>
 <script>
 /* ===== Đồng bộ Google Sheet (cập nhật mỗi 1 giây, mỗi bảng = 1 tab) ===== */
 (()=>{
@@ -1125,15 +1125,35 @@ async function call(o){
   const j=await r.json();if(j.error)throw Error(j.error==='key'?'Sai mã bí mật (hoặc bị khóa tạm)':j.error);return j}
  catch(e){throw e.name==='AbortError'?Error('Hết thời gian chờ Google Sheet'):e}
  finally{clearTimeout(to)}}
-const modalOpen=()=>!!document.querySelector('#modal .mb');
 const typing=()=>{const a=document.activeElement;return !!(a&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName)&&a.closest('main'))};
-function softRender(){   // vẽ lại giữ nguyên vị trí cuộn, không chạy lại hiệu ứng; hoãn nếu đang mở form hoặc đang gõ
- if(modalOpen()||typing()){Y.rp=1;return}
- Y.rp=0;const m=$('#main'),st=m?m.scrollTop:0,sl=m?m.scrollLeft:0;
- document.body.classList.add('noanim');render(true);   // render(true) = không chạy lại hiệu ứng đếm số / vẽ biểu đồ từ đầu
- 
- const m2=$('#main');if(m2){m2.scrollTop=st;m2.scrollLeft=sl}
- setTimeout(()=>document.body.classList.remove('noanim'),1000)}
+/* Cập nhật kiểu bảng giá chứng khoán: chỉ sửa đúng ô nào đổi, giữ nguyên phần còn lại (không làm mới trang, không chớp) */
+function flash(el){if(el&&el.nodeType===1){el.classList.remove('flc');void el.offsetWidth;el.classList.add('flc');setTimeout(()=>el.classList.remove('flc'),1000)}}
+function syncAttrs(x,y){
+ for(const at of [...x.attributes])if(!y.hasAttribute(at.name))x.removeAttribute(at.name);
+ for(const at of [...y.attributes]){
+  if(at.name==='style'){const keep=(x.getAttribute('style')||'').match(/--m[xy]:[^;]*;?/g)||[];const v=at.value+(keep.length?';'+keep.join(''):'');if(x.getAttribute('style')!==v)x.setAttribute('style',v)}
+  else if(x.getAttribute(at.name)!==at.value)x.setAttribute(at.name,at.value)}}
+function morph(a,b){
+ const A=[...a.childNodes],B=[...b.childNodes];
+ B.forEach((y,i)=>{const x=A[i];
+  if(!x){a.appendChild(y.cloneNode(true));return}
+  if(x.nodeType!==y.nodeType||(x.nodeType===1&&x.tagName!==y.tagName)){a.replaceChild(y.cloneNode(true),x);return}
+  if(x.nodeType!==1){if(x.nodeValue!==y.nodeValue){x.nodeValue=y.nodeValue;flash(a)}return}
+  if(x.isEqualNode(y))return;
+  if(x.tagName==='CANVAS'){if(x.dataset.cid!==y.dataset.cid)x.dataset.cid=y.dataset.cid;return}   // canvas giữ nguyên, biểu đồ tự vẽ lại theo dữ liệu mới
+  syncAttrs(x,y);morph(x,y)});
+ while(a.childNodes.length>B.length)a.removeChild(a.lastChild)}
+function softRender(){
+ if(typing()){Y.rp=1;return}
+ Y.rp=0;const m=$('#main'),nv=$('#nav');if(!m||!nv)return;
+ const tm=document.createElement('div'),tn=document.createElement('div');
+ tm.style.cssText=tn.style.cssText='position:fixed;left:-99999px;top:0;visibility:hidden;pointer-events:none;width:'+m.clientWidth+'px';
+ m.id='main_live';nv.id='nav_live';tm.id='main';tn.id='nav';document.body.append(tm,tn);   // dựng bản mới ở chỗ ẩn
+ let ok=true;
+ try{render(true);morph(m,tm)}catch(e){console.error(e);ok=false}
+ finally{m.id='main';nv.id='nav';tm.remove();tn.remove()}
+ if(!ok)render(true)}
+window.softRender=softRender;
 async function pull(ts){Y.pulling=1;try{const j=await call({a:'read',t:ts});
  const before=ts.map(t=>JSON.stringify(DB[t]));
  ts.forEach(t=>{DB[t]=j.data[t]||[];Y.last[t]=JSON.stringify(DB[t]);Y.vers[t]=j.vers[t]||0});
@@ -1149,10 +1169,10 @@ async function push(){if(PULL_ONLY||!on()||!Y.ready)return;if(Y.busy){Y.again=1;
   chip('ok','☁ Đã đồng bộ '+hm())}catch(e){chip('err','⚠ Lỗi đồng bộ');console.error(e)}
  Y.busy=0;if(Y.again){Y.again=0;sched()}}
 const sched=()=>{if(on()&&Y.ready){clearTimeout(tm);tm=setTimeout(push,1200)}};
-async function poll(){if(Y.rp&&!modalOpen()&&!typing()&&!document.hidden)softRender();
+async function poll(){if(Y.rp&&!typing()&&!document.hidden)softRender();
  if(!on()||!Y.ready||Y.busy||document.hidden)return;Y.busy=1;
  try{const j=await call({a:'vers'}),ts=TABLES.filter(t=>(j.vers[t]||0)!==(Y.vers[t]||0)&&(PULL_ONLY||JSON.stringify(DB[t])===Y.last[t]));
-  let ch=false;if(ts.length){ch=await pull(ts);if(ch)toast('Đã cập nhật từ Google Sheet ('+ts.length+' bảng)')}
+  let ch=false;if(ts.length){ch=await pull(ts);}
   if(ch||Y.st!=='ok')chip('ok','☁ Đã đồng bộ '+hm())}catch(e){chip('err','⚠ Mất kết nối Sheet')}
  Y.busy=0}
 async function connect(silent){Y.ready=0;Y.busy=0;chip('..','☁ Đang kết nối…');
@@ -1170,10 +1190,12 @@ const _s=Store.save;let _bt=0;Store.save=function(){
 window.G={set(){if(!on())return toast('Chưa điền URL ở đầu phần đồng bộ trong index.html',1);connect()},
  now(){PULL_ONLY?pull(TABLES).then(()=>toast('Đã tải lại từ Google Sheet')).catch(e=>toast(e.message,1)):push().then(poll)},
  off(){Y.ready=0;clearTimeout(tm);chip('','');toast('Đã tạm ngắt đồng bộ (tải lại trang để nối lại)');render()}};
-const card=()=>`<div class="gl dc"><div class="dh"><span class="ki2">☁️</span><div><b>Google Sheet (đồng bộ tự động)</b><div class="mute">${on()?(PULL_ONLY?'Chỉ lấy dữ liệu từ Sheet · kiểm tra mỗi 1 giây · sửa dữ liệu ở Google Sheet':'Đang bật · kiểm tra thay đổi mỗi 1 giây'):'Chưa điền URL trong index.html'}</div></div></div><div class="bar"><button class="pri" onclick="G.set()">${on()?'Kết nối lại':'Kết nối'}</button>${on()?'<button onclick="G.now()">Đồng bộ ngay</button><button onclick="G.off()">Ngắt đồng bộ</button>':''}</div></div>`;
+const card=()=>`<div class="gl dc"><div class="dh"><span class="ki2">☁️</span><div><b>Google Sheet (đồng bộ tự động)</b><div class="mute">${on()?(PULL_ONLY?'Chỉ lấy dữ liệu từ Sheet · cập nhật mỗi khi bấm nút · sửa dữ liệu ở Google Sheet':'Đang bật · cập nhật từ Sheet mỗi khi bấm nút'):'Chưa điền URL trong index.html'}</div></div></div><div class="bar"><button class="pri" onclick="G.set()">${on()?'Kết nối lại':'Kết nối'}</button>${on()?'<button onclick="G.now()">Đồng bộ ngay</button><button onclick="G.off()">Ngắt đồng bộ</button>':''}</div></div>`;
 const _d=P.data;P.data=()=>_d().replace(/<div class="al[^"]*">(?:✓ Đang lưu tự động vào thư mục|Chưa chọn thư mục)[\s\S]*?<\/div>/,'').replace('<h3>Nguồn dữ liệu</h3><div class="dgrid">',()=>'<h3>Nguồn dữ liệu</h3><div class="dgrid">'+card());
 $('#sv').insertAdjacentHTML('afterend','<span id="gs" class="mute" style="font-size:12px;white-space:nowrap"></span>');
-setInterval(poll,1000);                                   // kiểm tra Sheet mỗi 1 giây
+setInterval(poll,1000);   // kiểm tra Sheet liên tục mỗi 1 giây, chỉ ô nào đổi mới được cập nhật
+/* Bấm nút / liên kết cũng kiểm tra ngay */
+let _pt=0;document.addEventListener('click',e=>{if(!e.target.closest('button,a,select,[onclick]'))return;clearTimeout(_pt);_pt=setTimeout(poll,150)},true);                                   // kiểm tra Sheet mỗi 1 giây
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});   // quay lại tab là cập nhật ngay
 setInterval(()=>{if(on()&&!Y.ready&&!Y.busy)connect(true)},10000);       // lỗi mạng thì tự kết nối lại
 if(on())setTimeout(()=>connect(true),800);   // tự kết nối khi mở app
