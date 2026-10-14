@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quà Tặng Đặc Biệt Cho Cô Hương Trà 🎁</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800;900&family=Playfair+Display:ital,wght@1,700;1,900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            touch-action: manipulation;
+            overflow-x: hidden;
+            background: #0f172a;
+        }
+
+        /* Wobble animation for gift box */
+        @keyframes wobble {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            15% { transform: rotate(-8deg) scale(1.05); }
+            30% { transform: rotate(8deg) scale(1.05); }
+            45% { transform: rotate(-5deg) scale(1.08); }
+            60% { transform: rotate(5deg) scale(1.08); }
+            75% { transform: rotate(-2deg) scale(1.02); }
+        }
+
+        .animate-wobble {
+            animation: wobble 1.5s infinite ease-in-out;
+        }
+
+        /* Glowing effect */
+        .glow-effect {
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.7), 0 0 60px rgba(168, 85, 247, 0.5);
+        }
+
+        /* Rainbow text */
+        @keyframes rainbowText {
+            0% { color: #ef4444; text-shadow: 0 0 12px rgba(239,68,68,0.8); }
+            20% { color: #f97316; text-shadow: 0 0 12px rgba(249,115,22,0.8); }
+            40% { color: #eab308; text-shadow: 0 0 12px rgba(234,179,8,0.8); }
+            60% { color: #22c55e; text-shadow: 0 0 12px rgba(34,197,94,0.8); }
+            80% { color: #3b82f6; text-shadow: 0 0 12px rgba(59,130,246,0.8); }
+            100% { color: #a855f7; text-shadow: 0 0 12px rgba(168,85,247,0.8); }
+        }
+
+        .rainbow-text {
+            animation: rainbowText 2.5s linear infinite;
+        }
+
+        /* Floating bg elements */
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+            100% { transform: translateY(0px) rotate(360deg); }
+        }
+
+        .floating-item {
+            position: absolute;
+            animation: float 6s ease-in-out infinite;
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        /* Certificate Frame */
+        .cert-border {
+            border: 8px double #b45309;
+            background: radial-gradient(circle, #ffffff 0%, #fffbeb 100%);
+        }
+
+        /* Wheel Canvas Styling */
+        #wheel-canvas {
+            filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.4));
+        }
+
+        /* Wheel pointer */
+        .wheel-pointer {
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 32px solid #ef4444;
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.5));
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between select-none relative overflow-x-hidden">
+
+    <div class="floating-item text-4xl top-10 left-8" style="animation-delay: 0s;">🍎</div>
+    <div class="floating-item text-5xl top-1/4 right-8" style="animation-delay: 1s;">💸</div>
+    <div class="floating-item text-4xl bottom-20 left-12" style="animation-delay: 2s;">📐</div>
+    <div class="floating-item text-6xl bottom-1/3 right-10" style="animation-delay: 3s;">🤡</div>
+    <div class="floating-item text-5xl top-1/2 left-4" style="animation-delay: 4s;">👩‍🏫</div>
+
+    <main id="scene-gift" class="flex-1 flex flex-col items-center justify-center p-4 text-center z-10 transition-all duration-700">
+        <!-- Banner Title -->
+        <div class="mb-6 space-y-3 animate-bounce">
+            <span class="inline-block px-4 py-1.5 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full text-xs md:text-sm font-black tracking-widest uppercase shadow-xl">
+                ✨ MÓN QUÀ BẤT NGỜ DÀNH TẶNG ✨
+            </span>
+            <h1 class="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-400 to-purple-400">
+                CÓ MỘT PHẦN THƯỞNG CHO CÔ NGUYỄN HƯƠNG TRÀ!
+            </h1>
+            <p class="text-sm md:text-lg text-slate-300 font-medium">Giáo viên Tiểu học xuất sắc của Lớp Cô Trà 👩‍🏫✨</p>
+        </div>
+
+        <!-- Interactive Gift Box Container -->
+        <div id="gift-box-btn" class="cursor-pointer group relative my-6 transition-transform duration-300 active:scale-95">
+            <div class="absolute -inset-4 bg-gradient-to-r from-yellow-500 via-pink-500 to-purple-600 rounded-full blur-xl opacity-80 group-hover:opacity-100 transition duration-1000 animate-pulse"></div>
+            
+            <div class="relative w-52 h-52 md:w-64 md:h-64 bg-gradient-to-br from-pink-500 to-rose-600 rounded-3xl p-6 flex flex-col items-center justify-center shadow-2xl glow-effect animate-wobble border-4 border-yellow-300/60">
+                <div class="absolute w-full h-8 bg-gradient-to-r from-amber-300 to-yellow-400 top-1/2 -translate-y-1/2 shadow-md"></div>
+                <div class="absolute h-full w-8 bg-gradient-to-b from-amber-300 to-yellow-400 left-1/2 -translate-x-1/2 shadow-md"></div>
+                <div class="absolute -top-9 text-7xl md:text-8xl drop-shadow-lg animate-pulse">🎀</div>
+                
+                <i class="fa-solid fa-gift text-7xl md:text-8xl text-white drop-shadow-md z-10"></i>
+                <span class="z-10 mt-3 text-xs md:text-sm font-black bg-slate-900/90 px-4 py-1.5 rounded-full text-yellow-300 border border-yellow-400/50 shadow-lg">
+                    CHẠM ĐỂ MỞ QUÀ 🎁
+                </span>
+            </div>
+        </div>
+
+        <p class="mt-4 text-slate-300 text-sm md:text-base max-w-xs md:max-w-md font-semibold animate-pulse">
+            👇 Bấm vào hộp quà để nhận bằng khen trao tặng cho <span class="text-yellow-400 font-bold">Cô Hương Trà</span>!
+        </p>
+    </main>
+
+
+    <main id="scene-troll" class="hidden flex-1 flex flex-col items-center justify-center p-3 md:p-6 text-center z-10 w-full max-w-4xl mx-auto my-auto transition-all duration-700">
+        
+        <!-- Header Banner -->
+        <div class="w-full mb-3 space-y-1">
+            <h2 class="text-2xl md:text-5xl font-black rainbow-text uppercase tracking-wider transform -rotate-1">
+                🎉 TÔN VỊNH CÔ GIÁO BÁ ĐẠO! 🎉
+            </h2>
+            <p class="text-yellow-400 font-bold text-xs md:text-base animate-pulse">
+                🏆 CHÚC MỪNG CÔ NGUYỄN HƯƠNG TRÀ ĐÃ XÁC LẬP KỶ LỤC MỚI 🏆
+            </p>
+        </div>
+
+        <!-- Certificate Card -->
+        <div class="w-full cert-border text-slate-800 rounded-3xl p-4 md:p-8 shadow-2xl relative overflow-hidden my-2">
+            <!-- Stamp -->
+            <div class="absolute -right-8 -bottom-8 w-36 h-36 md:w-52 md:h-52 border-4 border-red-600/40 rounded-full flex items-center justify-center transform -rotate-12 pointer-events-none">
+                <span class="text-red-600/50 font-black text-[10px] md:text-xs uppercase tracking-widest text-center leading-tight">
+                    HIỆO HỘI THU HỌC PHÍ<br>TIỂU HỌC VIỆT NAM<br>★ ĐÃ THU TIỀN ★
+                </span>
+            </div>
+
+            <!-- Organization Name -->
+            <div class="border-b-2 border-amber-600/30 pb-3 mb-3">
+                <p class="text-[10px] md:text-xs font-extrabold text-amber-800 tracking-widest uppercase">
+                    HỆ THỐNG GIÁO DỤC TIỂU HỌC SỐ 1 BÁ ĐẠO
+                </p>
+                <h3 class="text-lg md:text-3xl font-black text-red-700 tracking-wide mt-0.5 uppercase" style="font-family: 'Playfair Display', serif;">
+                    TRUNG TÂM LỪA ĐẢO VỀ DẠY THÊM
+                </h3>
+            </div>
+
+            <!-- Certificate Subject -->
+            <div class="my-2">
+                <p class="text-xs md:text-sm text-slate-600 italic">Trân trọng trao chứng nhận cho:</p>
+                <h4 class="text-2xl md:text-4xl font-black text-rose-700 my-1 font-serif underline decoration-amber-500">
+                    Cô Nguyễn Hương Trà
+                </h4>
+                <p class="text-xs md:text-sm font-bold text-slate-700">
+                    Chức vụ: <span class="text-indigo-700">Giáo Viên Tiểu Học (Lớp Cô Trà) 👩‍🏫</span>
+                </p>
+            </div>
+
+            <!-- Main Titles & Reasons -->
+            <div class="bg-amber-100/90 rounded-2xl p-3 border border-amber-300 my-3 text-left space-y-1.5 shadow-inner">
+                <p class="text-xs md:text-sm font-extrabold text-red-800 flex items-center gap-1.5">
+                    🥇 Danh hiệu: <span class="text-purple-900 bg-yellow-300/80 px-2 py-0.5 rounded-lg border border-yellow-500">"Đại Sứ Lừa Đảo Học Phí"</span> & <span class="text-red-700 bg-yellow-300/80 px-2 py-0.5 rounded-lg border border-yellow-500">"Bậc Thầy Thu Tiền Học Thêm"</span>
+                </p>
+                <p class="text-xs md:text-sm text-slate-800 font-medium leading-relaxed">
+                    📝 <span class="font-bold text-slate-900">Lý do vinh danh:</span> "Đã dụ dỗ thành công hàng trăm phụ huynh và học sinh nộp tiền học thêm không trượt phát nào!" 💸
+                </p>
+            </div>
+
+            <!-- Troll Metrics Grid -->
+            <div class="grid grid-cols-3 gap-2 md:gap-4 my-3 text-center">
+                <div class="bg-white/90 p-2.5 rounded-xl border-2 border-emerald-400 shadow-sm">
+                    <p class="text-[9px] md:text-xs text-slate-600 font-bold uppercase">Học Sinh Ngoan</p>
+                    <p class="text-base md:text-2xl font-black text-emerald-600">100% 😇</p>
+                    <p class="text-[9px] text-slate-500 italic">(Vì quá sợ cô)</p>
+                </div>
+                <div class="bg-white/90 p-2.5 rounded-xl border-2 border-red-400 shadow-sm">
+                    <p class="text-[9px] md:text-xs text-slate-600 font-bold uppercase">Tỷ Lệ Hoàn Tiền</p>
+                    <p class="text-base md:text-2xl font-black text-red-600">0% 💸</p>
+                    <p class="text-[9px] text-slate-500 italic">(Vào túi cô là mất)</p>
+                </div>
+                <div class="bg-white/90 p-2.5 rounded-xl border-2 border-amber-400 shadow-sm">
+                    <p class="text-[9px] md:text-xs text-slate-600 font-bold uppercase">Học Phí Thu Được</p>
+                    <p class="text-base md:text-2xl font-black text-amber-600">∞ VNĐ 💰</p>
+                    <p class="text-[9px] text-slate-500 italic">(Đếm không nổi)</p>
+                </div>
+            </div>
+
+            <!-- Signature Area -->
+            <div class="mt-4 flex justify-between items-end text-left pt-2 border-t border-amber-300/80 text-xs md:text-sm">
+                <div>
+                    <p class="font-bold text-slate-600 text-[10px] md:text-xs">Mã Khóa Học:</p>
+                    <p class="font-mono text-red-600 font-bold text-xs md:text-sm">CO-TRA-TIEN-HOC-THEM-999</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-[10px] md:text-xs text-slate-500">Trưởng Ban Thu Ngân</p>
+                    <p class="font-bold text-red-700 font-serif text-xs md:text-base italic mt-0.5">Thầy Thích Thu Tiền ✍️</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full mt-4 flex flex-col md:flex-row items-center justify-center gap-3 relative min-h-[160px] md:min-h-[60px]">
+            <!-- Wheel Launch Button -->
+            <button id="btn-open-wheel" class="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-900 font-black rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2 text-sm md:text-base border border-yellow-200">
+                <i class="fa-solid fa-dharmachakra animate-spin" style="animation-duration: 8s;"></i>
+                Vòng Quay "Nhận Lại Học Phí" 🎡
+            </button>
+
+            <!-- Share Button -->
+            <button id="btn-share" class="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2 text-sm md:text-base">
+                <i class="fa-solid fa-share-nodes"></i>
+                Chia sẻ troll Cô Trà 📲
+            </button>
+
+            <!-- Replay Button -->
+            <button id="btn-replay" class="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2 text-sm md:text-base">
+                <i class="fa-solid fa-rotate-left"></i>
+                Mở lại quà 🎁
+            </button>
+
+            <!-- Dodging Refund Button -->
+            <div id="runaway-container" class="w-full md:w-auto">
+                <button id="btn-refund" class="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold rounded-xl shadow-xl transition-all duration-150 flex items-center justify-center gap-2 text-sm md:text-base">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                    <span>Đòi tiền Cô Trà 💸</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+
+    <div id="wheel-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 border-2 border-amber-400 rounded-3xl p-4 md:p-6 max-w-sm w-full text-center space-y-4 shadow-2xl relative">
+            <!-- Close Button -->
+            <button id="wheel-close" class="absolute top-3 right-3 text-slate-400 hover:text-white text-2xl font-bold w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+                ×
+            </button>
+
+            <div>
+                <h3 class="text-xl md:text-2xl font-black text-amber-300">VÒNG QUAY MAY MẮN 🎡</h3>
+                <p class="text-xs md:text-sm text-slate-300">Thử vận may xin lại tiền học thêm từ Cô Trà!</p>
+            </div>
+
+            <!-- Wheel Canvas Container -->
+            <div class="relative flex flex-col items-center justify-center my-2">
+                <div class="wheel-pointer z-20 mb-[-12px]"></div>
+                <canvas id="wheel-canvas" width="280" height="280" class="rounded-full border-4 border-amber-400/80"></canvas>
+            </div>
+
+            <!-- Spin Action Button -->
+            <button id="btn-spin-wheel" class="w-full py-3 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-slate-950 font-black text-base rounded-2xl shadow-xl transform active:scale-95 transition">
+                QUAY NGAY (100% MẤT TIỀN) 🚀
+            </button>
+        </div>
+    </div>
+
+
+    <div id="troll-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 border-2 border-yellow-400 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl transform scale-90 transition-transform duration-300" id="modal-box">
+            <div class="text-5xl" id="modal-icon">😜</div>
+            <h3 class="text-xl font-black text-yellow-300" id="modal-title">THÔNG BÁO TỪ CÔ TRÀ</h3>
+            <p class="text-slate-200 text-sm md:text-base leading-relaxed" id="modal-msg">Tiền đã vào túi cô rồi, làm sao mà đòi lại được đâu em ơi! 😜</p>
+            <button id="modal-close" class="w-full py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-extrabold rounded-xl transition shadow-md">
+                Đã Ngậm Ngùi Hiểu 😭
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="p-3 text-center text-xs text-slate-500 z-10">
+        © 2026 Lớp Cô Trà - Trang web mang tính chất giải trí, troll vui vẻ! 😄
+    </footer>
+
+    <script>
+        // Web Audio API Synthesizer for Fun Sound Effects
+        const playSound = (type) => {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (type === 'pop') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(850, ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.15);
+                } else if (type === 'tada') {
+                    const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.value = freq;
+                        gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.07);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + idx * 0.07 + 0.35);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + idx * 0.07);
+                        osc.stop(ctx.currentTime + idx * 0.07 + 0.35);
+                    });
+                } else if (type === 'boing') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(160, ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(450, ctx.currentTime + 0.18);
+                    osc.frequency.linearRampToValueAtTime(120, ctx.currentTime + 0.35);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.35);
+                } else if (type === 'tick') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.03);
+                } else if (type === 'laugh') {
+                    [0, 0.12, 0.24, 0.36].forEach((time, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(350 + (i % 2) * 50, ctx.currentTime + time);
+                        osc.frequency.linearRampToValueAtTime(200, ctx.currentTime + time + 0.1);
+                        gain.gain.setValueAtTime(0.25, ctx.currentTime + time);
+                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + time + 0.1);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(ctx.currentTime + time);
+                        osc.stop(ctx.currentTime + time + 0.1);
+                    });
+                }
+            } catch (e) {
+                console.log('Audio init blocked:', e);
+            }
+        };
+
+        // DOM elements
+        const sceneGift = document.getElementById('scene-gift');
+        const sceneTroll = document.getElementById('scene-troll');
+        const giftBoxBtn = document.getElementById('gift-box-btn');
+        const btnShare = document.getElementById('btn-share');
+        const btnReplay = document.getElementById('btn-replay');
+        const btnRefund = document.getElementById('btn-refund');
+        
+        // Wheel Modal Elements
+        const btnOpenWheel = document.getElementById('btn-open-wheel');
+        const wheelModal = document.getElementById('wheel-modal');
+        const wheelClose = document.getElementById('wheel-close');
+        const btnSpinWheel = document.getElementById('btn-spin-wheel');
+        const wheelCanvas = document.getElementById('wheel-canvas');
+        const ctxWheel = wheelCanvas.getContext('2d');
+
+        // Message Modal Elements
+        const trollModal = document.getElementById('troll-modal');
+        const modalBox = document.getElementById('modal-box');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMsg = document.getElementById('modal-msg');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalClose = document.getElementById('modal-close');
+
+        // Fireworks Confetti Launcher
+        const triggerFireworks = () => {
+            playSound('tada');
+            const duration = 3 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const particleCount = 50 * (timeLeft / duration);
+                
+                confetti(Object.assign({}, defaults, { 
+                    particleCount, 
+                    origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } 
+                }));
+                confetti(Object.assign({}, defaults, { 
+                    particleCount, 
+                    origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } 
+                }));
+            }, 250);
+        };
+
+        // Open Dialog Modal
+        const showModal = (title, msg, icon = '😜') => {
+            modalTitle.innerText = title;
+            modalMsg.innerText = msg;
+            modalIcon.innerText = icon;
+            
+            trollModal.classList.remove('hidden');
+            setTimeout(() => {
+                trollModal.classList.remove('opacity-0');
+                modalBox.classList.remove('scale-90');
+                modalBox.classList.add('scale-100');
+            }, 10);
+        };
+
+        const closeModal = () => {
+            trollModal.classList.add('opacity-0');
+            modalBox.classList.remove('scale-100');
+            modalBox.classList.add('scale-90');
+            setTimeout(() => {
+                trollModal.classList.add('hidden');
+            }, 300);
+        };
+
+        modalClose.addEventListener('click', closeModal);
+
+        // GIFT OPEN ACTION
+        giftBoxBtn.addEventListener('click', () => {
+            playSound('pop');
+            giftBoxBtn.classList.add('scale-0', 'transition-transform', 'duration-500');
+
+            setTimeout(() => {
+                sceneGift.classList.add('hidden');
+                sceneTroll.classList.remove('hidden');
+                triggerFireworks();
+            }, 500);
+        });
+
+        // REPLAY ACTION
+        btnReplay.addEventListener('click', () => {
+            playSound('pop');
+            sceneTroll.classList.add('hidden');
+            sceneGift.classList.remove('hidden');
+            giftBoxBtn.classList.remove('scale-0');
+            btnRefund.style.position = 'static';
+            btnRefund.style.transform = 'none';
+        });
+
+        // SHARE ACTION
+        btnShare.addEventListener('click', () => {
+            playSound('pop');
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    showModal(
+                        'ĐÃ SAO CHÉP LINK TROLL! 🚀',
+                        'Hãy gửi ngay đường link này cho đồng nghiệp hoặc phụ huynh Lớp Cô Trà để tôn vinh cô nhé!',
+                        '📤'
+                    );
+                }).catch(() => fallbackCopy());
+            } else {
+                fallbackCopy();
+            }
+
+            function fallbackCopy() {
+                showModal(
+                    'CHIA SẺ BẰNG KHÊN CÔ TRÀ 🚀',
+                    'Hãy copy link trên trình duyệt và gửi ngay cho Cô Nguyễn Hương Trà thôi nào!',
+                    '🔥'
+                );
+            }
+        });
+
+        let dodgeCount = 0;
+        const refundMessages = [
+            "Tiền đã vào túi Cô Trà rồi, làm sao mà đòi lại được đâu em ơi! 😜",
+            "Đừng cố nữa em ơi, tiền học thêm Cô Trà đã cất vào két sắt rồi! 🔐",
+            "Nút này chỉ mang tính chất minh họa thôi nha! 🤡",
+            "Ủa vẫn bấm đòi à? Cô Trà khen cho sự kiên trì đấy! 😂",
+            "Muốn lấy lại tiền? Đăng ký học thêm 1 khóa nữa rồi Cô Trà tính nhé! 💸"
+        ];
+
+        const dodgeButton = (e) => {
+            if (e) e.preventDefault();
+            playSound('boing');
+            dodgeCount++;
+
+            btnRefund.style.position = 'fixed';
+            const btnWidth = btnRefund.offsetWidth || 180;
+            const btnHeight = btnRefund.offsetHeight || 50;
+
+            const maxX = window.innerWidth - btnWidth - 20;
+            const maxY = window.innerHeight - btnHeight - 20;
+
+            const randomX = Math.max(20, Math.floor(Math.random() * maxX));
+            const randomY = Math.max(20, Math.floor(Math.random() * maxY));
+
+            btnRefund.style.left = `${randomX}px`;
+            btnRefund.style.top = `${randomY}px`;
+            btnRefund.style.zIndex = '40';
+
+            if (dodgeCount % 5 === 0) {
+                const msgIndex = Math.min(Math.floor(dodgeCount / 5) - 1, refundMessages.length - 1);
+                showModal('THÔNG BÁO TỪ CÔ TRÀ', refundMessages[msgIndex], '💸');
+            }
+        };
+
+        btnRefund.addEventListener('mouseenter', dodgeButton);
+        btnRefund.addEventListener('touchstart', dodgeButton, { passive: false });
+        btnRefund.addEventListener('click', dodgeButton);
+
+
+        const wheelSectors = [
+            { label: "Đóng thêm tiền 💸", color: "#ef4444" },
+            { label: "Mất lượt 🤡", color: "#f97316" },
+            { label: "Nộp phạt 100k ⚠️", color: "#eab308" },
+            { label: "Mua Trà Sữa Cô 🧋", color: "#a855f7" },
+            { label: "Đóng gấp đôi 🔥", color: "#ec4899" },
+            { label: "Học thêm Tăng Cường 📝", color: "#3b82f6" }
+        ];
+
+        let currentAngle = 0;
+        let isSpinning = false;
+
+        function drawWheel() {
+            const numSectors = wheelSectors.length;
+            const sectorAngle = (2 * Math.PI) / numSectors;
+            const radius = wheelCanvas.width / 2;
+
+            ctxWheel.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+
+            ctxWheel.save();
+            ctxWheel.translate(radius, radius);
+            ctxWheel.rotate(currentAngle);
+
+            for (let i = 0; i < numSectors; i++) {
+                const startA = i * sectorAngle;
+                const endA = startA + sectorAngle;
+
+                ctxWheel.beginPath();
+                ctxWheel.moveTo(0, 0);
+                ctxWheel.arc(0, 0, radius - 5, startA, endA);
+                ctxWheel.closePath();
+                ctxWheel.fillStyle = wheelSectors[i].color;
+                ctxWheel.fill();
+                ctxWheel.lineWidth = 3;
+                ctxWheel.strokeStyle = '#ffffff';
+                ctxWheel.stroke();
+
+                // Draw Text
+                ctxWheel.save();
+                ctxWheel.rotate(startA + sectorAngle / 2);
+                ctxWheel.textAlign = 'right';
+                ctxWheel.fillStyle = '#ffffff';
+                ctxWheel.font = 'bold 12px Montserrat';
+                ctxWheel.shadowColor = 'rgba(0,0,0,0.6)';
+                ctxWheel.shadowBlur = 4;
+                ctxWheel.fillText(wheelSectors[i].label, radius - 20, 4);
+                ctxWheel.restore();
+            }
+
+            // Draw Center Pin
+            ctxWheel.beginPath();
+            ctxWheel.arc(0, 0, 22, 0, 2 * Math.PI);
+            ctxWheel.fillStyle = '#1e293b';
+            ctxWheel.fill();
+            ctxWheel.lineWidth = 3;
+            ctxWheel.strokeStyle = '#f59e0b';
+            ctxWheel.stroke();
+
+            ctxWheel.restore();
+        }
+
+        drawWheel();
+
+        // Open Wheel Modal
+        btnOpenWheel.addEventListener('click', () => {
+            playSound('pop');
+            wheelModal.classList.remove('hidden');
+            setTimeout(() => wheelModal.classList.remove('opacity-0'), 10);
+        });
+
+        wheelClose.addEventListener('click', () => {
+            wheelModal.classList.add('opacity-0');
+            setTimeout(() => wheelModal.classList.add('hidden'), 300);
+        });
+
+        // Spin Wheel Action (Rigged to always land on loss options)
+        btnSpinWheel.addEventListener('click', () => {
+            if (isSpinning) return;
+            isSpinning = true;
+            btnSpinWheel.disabled = true;
+            btnSpinWheel.classList.add('opacity-50');
+
+            // Sound ticker timer
+            let tickInterval = setInterval(() => playSound('tick'), 120);
+
+            // Calculate spins
+            const extraRounds = 5 + Math.floor(Math.random() * 3);
+            // Rigged target index (Target index 0, 2, or 4 - all losing)
+            const targetSectorIndex = [0, 2, 4][Math.floor(Math.random() * 3)];
+            const sectorAngle = (2 * Math.PI) / wheelSectors.length;
+
+            // Final angle positioning calculation (pointer at top 270 deg)
+            const targetAngle = (3 * Math.PI / 2) - (targetSectorIndex * sectorAngle + sectorAngle / 2);
+            const totalRotation = currentAngle + (extraRounds * 2 * Math.PI) + (targetAngle - (currentAngle % (2 * Math.PI)));
+
+            const startTime = performance.now();
+            const duration = 4000;
+
+            function animateSpin(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                
+                currentAngle = totalRotation * easeOut;
+                drawWheel();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateSpin);
+                } else {
+                    clearInterval(tickInterval);
+                    isSpinning = false;
+                    btnSpinWheel.disabled = false;
+                    btnSpinWheel.classList.remove('opacity-50');
+
+                    playSound('laugh');
+                    const winningSector = wheelSectors[targetSectorIndex];
+                    showModal(
+                        'KẾT QUẢ VÒNG QUAY 🎡',
+                        `Chúc mừng bạn đã quay trúng ô: "${winningSector.label}"! Hãy nộp ngay cho Cô Hương Trà nhé! 💸`,
+                        '🤣'
+                    );
+                }
+            }
+
+            requestAnimationFrame(animateSpin);
+        });
+    </script>
+</body>
+</html>
